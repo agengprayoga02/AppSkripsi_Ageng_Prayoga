@@ -7,7 +7,7 @@ import sqlite3
 from utils import load_dataset, scale_data, check_stationarity, split_data_arima, evaluate_predictions, plot_predictions, generate_recommendation, compare_actual_vs_predicted, transformer_prediction_final, load_transformer_model_final, evaluate_arima_model
 from db import insert_history, insert_evaluation_history
 
-DATASETS_DIR = "C:/Users/ASUS/Aplikasi_Skripsi/datasets"
+DATASETS_DIR = "datasets"
 
 def prediction_page(conn, cursor):
     st.header("Prediksi & Evaluasi")

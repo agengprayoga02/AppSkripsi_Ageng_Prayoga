@@ -13,8 +13,8 @@ from sklearn.model_selection import KFold
 import streamlit as st
 
 # Paths (Pastikan ini sesuai dengan struktur direktori Anda)
-DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
-MODELS_DIR = os.path.join(BASE_DIR, "saved_models")
+DATASETS_DIR = ("datasets")
+MODELS_DIR = ("saved_models")
 
 
 # --- Load Data ---

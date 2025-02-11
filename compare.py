@@ -4,8 +4,8 @@ import pandas as pd
 from utils import load_dataset, load_arima_model, evaluate_arima_model, load_transformer_model, evaluate_transformer, plot_predictions, load_transformer_model_final, transformer_prediction_final, evaluate_predictions, generate_recommendation  # Import generate_recommendation
 from db import insert_history, insert_evaluation_history  # Import fungsi dari db.py
 
-MODELS_DIR = "C:/Users/ASUS/Aplikasi_Skripsi/saved_models"  # Sesuaikan path
-DATASETS_DIR = "C:/Users/ASUS/Aplikasi_Skripsi/datasets"  # Sesuaikan path
+MODELS_DIR = "saved_models"  # Sesuaikan path
+DATASETS_DIR = "datasets"  # Sesuaikan path
 
 def compare_models_page(conn, cursor):
     st.header("Compare Models")

@@ -19,10 +19,9 @@ import sqlite3
 DATASETS_DIR = "C:/Users/ASUS/Aplikasi_Skripsi/datasets"  # Sesuaikan path
 
 # Initialize database connection in app.py (only once)
-# Initialize database connection in app.py (only once)
 db_conn_result = db.init_db()
 if db_conn_result is None:
-    st.error("Failed to connect to the database during initialization.")
+    st.error("Failed to connect to the database.")
     st.stop()  # Terminate the app if database connection fails
 conn, cursor = db_conn_result
 
@@ -348,15 +347,6 @@ def main():
 
     # Authentication section
     if not st.session_state.logged_in:
-        # Debugging: Check connection and cursor before calling login_section
-        print(f"Before login_section: conn={conn}, cursor={cursor}")  # Debugging
-        if conn is None:
-            st.error("Database connection is None.")
-            return  # Stop if connection is invalid
-        if cursor is None:
-            st.error("Database cursor is None.")
-            return  # Stop if cursor is invalid
-
         username, password, auth_status, user_id = login_section()
         if auth_status:
             st.session_state.logged_in = True
@@ -439,9 +429,6 @@ def login_section():
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         
-        # Debugging: Check the value of username
-        print(f"Login attempt: username={username}")  # Debugging
-
         # Forgot Password Button
         if st.button("Forgot Password?"):
             st.session_state.show_forgot_password = True
@@ -525,18 +512,6 @@ def login_section():
                         st.error("Too many failed login attempts. Account locked.")
                         return None, None, False, None
                     
-                    # Debugging: Check connection, cursor, and username before execute
-                    print(f"Before cursor.execute: conn={conn}, cursor={cursor}, username={username}")  # Debugging
-                    if conn is None:
-                        st.error("Database connection is None during login attempt.")
-                        return None, None, False, None
-                    if cursor is None:
-                        st.error("Database cursor is None during login attempt.")
-                        return None, None, False, None
-                    if not username:
-                        st.error("Username is empty during login attempt.")
-                        return None, None, False, None
-
                     cursor.execute("SELECT user_id, username, password_hash, salt FROM users WHERE username = ?", (username,))
                     user = cursor.fetchone()
                     if user and db.check_password(password, user[2], user[3]):

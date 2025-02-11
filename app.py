@@ -16,7 +16,7 @@ import seaborn as sns
 import numpy as np # Import numpy
 import sqlite3
 
-DATASETS_DIR = "C:/Users/ASUS/Aplikasi_Skripsi/datasets"  # Sesuaikan path
+DATASETS_DIR = "datasets"  # Sesuaikan path
 
 # Initialize database connection in app.py (only once)
 db_conn_result = db.init_db()

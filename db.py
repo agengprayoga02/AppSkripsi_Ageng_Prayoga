@@ -5,7 +5,7 @@ import os
 import streamlit as st
 import datetime
 
-DATABASE_PATH = os.path.join("C:/Users/ASUS/Aplikasi_Skripsi", "dbd_prediction.db")  # Path ke database SQLite
+DATABASE_PATH = os.path.join( "dbd_prediction.db")  # Path ke database SQLite
 
 # SQLite Database Setup
 def init_db():

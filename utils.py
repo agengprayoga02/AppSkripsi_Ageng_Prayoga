@@ -13,7 +13,6 @@ from sklearn.model_selection import KFold
 import streamlit as st
 
 # Paths (Pastikan ini sesuai dengan struktur direktori Anda)
-BASE_DIR = "C:/Users/ASUS/Aplikasi_Skripsi"
 DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
 MODELS_DIR = os.path.join(BASE_DIR, "saved_models")
 

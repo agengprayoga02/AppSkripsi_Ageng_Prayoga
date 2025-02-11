@@ -6,7 +6,7 @@ import sqlite3
 from db import hash_password, check_password, is_valid_email, get_all_models, get_model_by_id, update_model, delete_model
 from utils import load_dataset
 
-MODELS_DIR = "C:/Users/ASUS/Aplikasi_Skripsi/saved_models"  # Sesuaikan path
+MODELS_DIR = "saved_models"  # Sesuaikan path
 
 def models_page(conn, cursor, username):
     st.header("Models")

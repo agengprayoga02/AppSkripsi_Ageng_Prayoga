@@ -105,12 +105,19 @@ def preprocess_dataset_informer(df, target_col="jumlah_kasus", seq_length=12):
 def load_arima_model():
     """Loads the ARIMA model."""
     model_path = os.path.join(MODELS_DIR, "sarimax_model.pkl")
-    if os.path.exists(model_path):
-        with open(model_path, "rb") as f:
-            model_dict = pickle.load(f)
-        return model_dict
-    else:
-        st.error(f"ARIMA model not found at {model_path}")
+    try:
+        if os.path.exists(model_path):
+            with open(model_path, "rb") as f:
+                model = pickle.load(f)
+            logging.info(f"ARIMA model loaded from: {model_path}")
+            return model
+        else:
+            st.error(f"ARIMA model not found at {model_path}")
+            logging.warning(f"ARIMA model not found at: {model_path}")
+            return None
+    except Exception as e:
+        st.error(f"Error loading ARIMA model: {e}")
+        logging.exception(f"Error loading ARIMA model: {e}")
         return None
 
 def load_transformer_model_final():
@@ -291,37 +298,75 @@ def evaluate_transformer(df, fold, forecast_months):
    return None, None
 
 def evaluate_arima_model(df, forecast_months):
-    # Load Model
-    model_dict = load_arima_model()
-    if not model_dict:
+    """Evaluates ARIMA model."""
+    try:
+        # Load Model
+        model = load_arima_model()
+        if model is None:
+            st.error("Failed to load ARIMA model.")
+            return None, None
+
+        # Load Scaler
+        scaler = load_arima_scaler()
+        if scaler is None:
+            st.error("Failed to load ARIMA scaler.")
+            return None, None
+
+        y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
+        logging.info(f"Actual data: {y_actual}")
+
+        # Preprocessing data for ARIMA
+        scaled_data, _ = scale_data(df)
+        logging.info(f"Scaled data (first 5 values):\n{scaled_data[:5]}")
+
+        scaled_data = check_stationarity(scaled_data)
+
+        if scaled_data is not None:
+            logging.info("Data preprocessing successful.")
+            # split the train data
+            train_data, test_data = split_data_arima(scaled_data)
+            try:
+                logging.info("Starting ARIMA forecasting.")
+                y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
+                logging.info(f"Raw ARIMA predictions: {y_pred}")
+                y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
+                logging.info(f"Predictions after inverse transform: {y_pred_original}")
+
+                # Evaluasi
+                metrics = evaluate_predictions(y_actual, y_pred_original)
+                logging.info(f"Evaluation metrics: {metrics}")
+
+                return metrics, y_pred_original
+            except Exception as e:
+                st.error(f"Error during ARIMA forecasting: {e}")
+                logging.exception(f"Error during ARIMA forecasting: {e}")
+                return None, None  # Return None on error
+        else:
+            logging.warning("Data preprocessing failed.")
+            return None, None
+
+    except Exception as e:
+        st.error(f"Error during ARIMA model evaluation: {e}")
+        logging.exception(f"Error during ARIMA model evaluation: {e}")
         return None, None
-    model = model_dict["model"]
-    scaler = model_dict["scaler"]
 
-    y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
-
-    # Preprocessing data for ARIMA
-    scaled_data, _ = scale_data(df)
-    scaled_data = check_stationarity(scaled_data)
-
-    if scaled_data is not None:
-        # split the train data
-        train_data, test_data = split_data_arima(scaled_data)
-        try:
-            y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
-            y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
-
-            # Evaluasi
-            metrics = evaluate_predictions(y_actual, y_pred_original)
-
-            return metrics, y_pred_original
-        except Exception as e:
-            st.error(f"Error during ARIMA forecasting: {e}")
-            logging.exception(f"Error during ARIMA forecasting: {e}")
-            return None, None  # Return None on error
-    else:
-        logging.warning("Data preprocessing failed.")
-        return None, None
+def load_arima_scaler():
+    """Loads the scaler for ARIMA model."""
+    scaler_path = os.path.join(MODELS_DIR, "arima_scaler.pkl")
+    try:
+        if os.path.exists(scaler_path):
+            with open(scaler_path, "rb") as f:
+                scaler = pickle.load(f)
+            logging.info(f"ARIMA scaler loaded from: {scaler_path}")
+            return scaler
+        else:
+            st.error(f"ARIMA scaler not found at {scaler_path}")
+            logging.warning(f"ARIMA scaler not found at: {scaler_path}")
+            return None
+    except Exception as e:
+        st.error(f"Error loading ARIMA scaler: {e}")
+        logging.exception(f"Error loading ARIMA scaler: {e}")
+        return None
 
 def is_valid_password(password):
     """

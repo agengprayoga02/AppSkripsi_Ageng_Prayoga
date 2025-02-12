@@ -111,6 +111,9 @@ def prediction_page(conn, cursor):
                 if y_pred is not None:
                     y_true = df["jumlah_kasus"].tolist()
                     st.success("Transformer prediction completed.")
+                    # Konversi ke Nilai Absolut dan Integer
+                    y_pred = np.abs(y_pred).astype(int) # Tambahkan baris ini
+
                     st.write("Predictions:", y_pred[:forecast_months])  # Display forecast months
                     y_actual = y_true[len(y_true) - len(y_pred):]
                     plot_predictions(y_actual, y_pred, title="Transformer Actual vs Predicted")

@@ -56,10 +56,13 @@ def prediction_page(conn, cursor):
                 if metrics is not None and y_pred_original_scale is not None:
                     st.success("ARIMA prediction and evaluation completed.")
 
-                    # Validasi NaN di y_true
+                    # Validasi NaN di y_pred_original_scale
                     if any(pd.isna(y_pred_original_scale)):
                       st.error("ARIMA Model prediction contains NaN. Check model input or preprocessing steps.")
                       st.stop()
+
+                    # Konversi ke Nilai Absolut dan Integer
+                    y_pred_original_scale = np.abs(y_pred_original_scale).astype(int)  # Tambahkan baris ini
 
                     y_actual = df["jumlah_kasus"].values[-len(y_pred_original_scale):]
                     plot_predictions(y_actual, y_pred_original_scale, algorithm)

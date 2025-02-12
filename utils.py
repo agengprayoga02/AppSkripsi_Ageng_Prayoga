@@ -35,10 +35,11 @@ def check_stationarity(timeseries):
     result = adfuller(timeseries)
     if result[1] <= 0.05:
         logging.info("Data sudah stasioner.")
-        return timeseries
+        return timeseries, 0  # Return data and differencing order
     else:
         logging.info("Data tidak stasioner, melakukan differencing.")
-        return pd.DataFrame(timeseries).diff().dropna().values  # Return differenced data
+        diff_data = pd.DataFrame(timeseries).diff().dropna().values
+        return diff_data, 1  # Return differenced data and differencing order
 
 # --- Split Data (ARIMA) ---
 def split_data_arima(scaled_data, train_ratio=0.8):
@@ -209,7 +210,7 @@ def compare_actual_vs_predicted(y_true, y_pred):
         y_true = np.array(y_true)
         y_pred = np.array(y_pred)
 
-    metrics = evaluate_predictions(y_true, y_pred, )
+    metrics = evaluate_predictions(y_true, y_pred)
     plot_predictions(y_true, y_pred, title="Actual vs Predicted")
 
     return metrics
@@ -273,42 +274,39 @@ def split_data_informer(X, y, n_splits=5, shuffle=True, random_state=42):
 def evaluate_transformer(df, fold, forecast_months):
    return None, None
 
-def evaluate_arima_model(df, forecast_months):
-    # Preprocessing data for ARIMA
-    df_values = df["jumlah_kasus"].values
-    df_values = check_stationarity(df_values)
-
-    if df_values is not None:
-        # Load Model
-        model_dict = load_arima_model()
-        if not model_dict:
-            return None, None
-        model = model_dict["model"]
-
-        y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
-
-        try:
-            y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
-            #y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten() #HAPUS
-            y_pred_original = y_pred
-
-            # Evaluasi
-            metrics = evaluate_predictions(y_actual, y_pred_original)
-
-            return metrics, y_pred_original
-        except Exception as e:
-            st.error(f"Error during ARIMA forecasting: {e}")
-            logging.exception(f"Error during ARIMA forecasting: {e}")
-            return None, None  # Return None on error
-    else:
-        logging.warning("Data preprocessing failed.")
+def evaluate_arima_model(df, forecast_months, diff_order):
+    """Evaluates ARIMA model."""
+    # Load Model
+    model_dict = load_arima_model()
+    if not model_dict:
         return None, None
+    model = model_dict["model"]
+
+    y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
+
+    try:
+        y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
+        y_pred_original = y_pred
+
+        # If differencing was applied, need to reverse it
+        if diff_order > 0:
+            y_pred_original = np.cumsum(y_pred_original)  # Simple reverse differencing
+
+        # Evaluasi
+        metrics = evaluate_predictions(y_actual, y_pred_original)
+
+        return metrics, y_pred_original
+    except Exception as e:
+        st.error(f"Error during ARIMA forecasting: {e}")
+        logging.exception(f"Error during ARIMA forecasting: {e}")
+        return None, None  # Return None on error
 
 # --- No Scale data
 
 def scale_data(df, feature_column='jumlah_kasus'):
     """No scale data."""
     return df, None
+
 
 def is_valid_password(password):
     """

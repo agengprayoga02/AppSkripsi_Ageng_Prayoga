@@ -193,10 +193,30 @@ def compare_models_page(conn, cursor):
 
                     plot_predictions(model_result["y_actual"], model_result["y_pred"], title=f"Actual vs Predicted for {selected_model_for_plot}")
 
-                    # Display Evaluation Metrics for each model
+                                        # Display Evaluation Metrics for each model in a table
                     st.subheader("Evaluation Metrics for each Model:")
+                    metrics_data = []
                     for model_name, model_result in results.items():
-                        st.write(f"**{model_name}**: {model_result['metrics']}")
+                        metrics = model_result['metrics']
+                        metrics_data.append({
+                            "Model": model_name,
+                            "MSE": metrics.get("MSE"),
+                            "RMSE": metrics.get("RMSE"),
+                            "MAE": metrics.get("MAE"),
+                            "R2": metrics.get("R2"),
+                            "MAPE": metrics.get("MAPE")
+                        })
+
+                    metrics_df = pd.DataFrame(metrics_data)
+
+                    # Set 'Model' column as index for better readability
+                    metrics_df = metrics_df.set_index('Model')
+
+                    # Round numeric values
+                    numeric_cols = ["MSE", "RMSE", "MAE", "R2", "MAPE"]
+                    metrics_df[numeric_cols] = metrics_df[numeric_cols].round(2)
+
+                    st.dataframe(metrics_df)  # or use st.table(metrics_df)
 
                 else:
                     st.error("Please select at least one model to compare.")

@@ -52,59 +52,68 @@ def prediction_page(conn, cursor):
         with st.spinner(f"Running prediction and evaluation for {algorithm}..."): # Show a spinner
 
             if algorithm == "ARIMA":
-                metrics, y_pred_original_scale = evaluate_arima_model(df, forecast_months)
-                if metrics is not None and y_pred_original_scale is not None:
-                    st.success("ARIMA prediction and evaluation completed.")
+                # Apply differencing before splitting
+                df_values = df["jumlah_kasus"].values
+                df_values, diff_order = check_stationarity(df_values)
 
-                    # Validasi NaN di y_pred_original_scale
-                    if any(pd.isna(y_pred_original_scale)):
-                      st.error("ARIMA Model prediction contains NaN. Check model input or preprocessing steps.")
+                if df_values is not None:
+                    metrics, y_pred_original_scale = evaluate_arima_model(df, forecast_months, diff_order)
+
+                    if metrics is not None and y_pred_original_scale is not None:
+                        st.success("ARIMA prediction and evaluation completed.")
+
+                        # Validasi NaN di y_pred_original_scale
+                        if any(pd.isna(y_pred_original_scale)):
+                            st.error("ARIMA Model prediction contains NaN. Check model input or preprocessing steps.")
+                            st.stop()
+
+                        # Konversi ke Nilai Absolut dan Integer
+                        y_pred_original_scale = np.abs(y_pred_original_scale).astype(int)  # Tambahkan baris ini
+
+                        y_actual = df["jumlah_kasus"].values[-len(y_pred_original_scale):]
+                        plot_predictions(y_actual, y_pred_original_scale, algorithm)
+                        metrics = evaluate_predictions(y_actual, y_pred_original_scale)
+
+                        recommendation = generate_recommendation(metrics, y_pred_original_scale, y_actual)
+                        st.write("Recommendation:", recommendation)
+                        comparison_metrics = compare_actual_vs_predicted(y_actual, y_pred_original_scale)
+                        st.write("Comparison Metrics:", comparison_metrics)
+
+                        try:
+                          # Insert history and evaluation
+                            cursor.execute("SELECT dataset_id FROM datasets WHERE dataset_name = ? ORDER BY dataset_id DESC LIMIT 1", (file_name,))
+                            result = cursor.fetchone()
+                            dataset_id = result[0] if result else None
+
+                            if dataset_id is not None:
+                                # Insert history and evaluation
+                                if insert_history(cursor, model_id, dataset_id, y_pred_original_scale.tolist()):  # Convert NumPy array to list
+                                    conn.commit()
+                                    st.success(f"Prediction added to database.")
+                                else:
+                                    st.error(f"Failed to add prediction to database.")
+                                    logging.error("Failed to add prediction to database.")
+
+                                if insert_evaluation_history(cursor, model_id, dataset_id, metrics):
+                                    conn.commit()
+                                    st.success(f"Evaluation added to database.")
+                                else:
+                                    st.error(f"Failed to add evaluation to database.")
+                                    logging.error("Failed to add evaluation to database.")
+                            else:
+                                st.error("dataset_id not found.")
+                                logging.error("dataset_id not found.")
+                        except sqlite3.Error as e:
+                            st.error(f"Failed to add prediction or evaluation to database: {e}")
+                            logging.exception(f"Database error: {e}")
+                    else:
+                      st.error("Failed to load ARIMA model.")
+                      logging.error("Failed to load ARIMA model.")
                       st.stop()
-
-                    # Konversi ke Nilai Absolut dan Integer
-                    y_pred_original_scale = np.abs(y_pred_original_scale).astype(int)  # Tambahkan baris ini
-
-                    y_actual = df["jumlah_kasus"].values[-len(y_pred_original_scale):]
-                    plot_predictions(y_actual, y_pred_original_scale, algorithm)
-                    metrics = evaluate_predictions(y_actual, y_pred_original_scale)
-
-                    recommendation = generate_recommendation(metrics, y_pred_original_scale, y_actual)
-                    st.write("Recommendation:", recommendation)
-                    comparison_metrics = compare_actual_vs_predicted(y_actual, y_pred_original_scale)
-                    st.write("Comparison Metrics:", comparison_metrics)
-
-                    try:
-                      # Insert history and evaluation
-                        cursor.execute("SELECT dataset_id FROM datasets WHERE dataset_name = ? ORDER BY dataset_id DESC LIMIT 1", (file_name,))
-                        result = cursor.fetchone()
-                        dataset_id = result[0] if result else None
-
-                        if dataset_id is not None:
-                            # Insert history and evaluation
-                            if insert_history(cursor, model_id, dataset_id, y_pred_original_scale.tolist()):  # Convert NumPy array to list
-                                conn.commit()
-                                st.success(f"Prediction added to database.")
-                            else:
-                                st.error(f"Failed to add prediction to database.")
-                                logging.error("Failed to add prediction to database.")
-
-                            if insert_evaluation_history(cursor, model_id, dataset_id, metrics):
-                                conn.commit()
-                                st.success(f"Evaluation added to database.")
-                            else:
-                                st.error(f"Failed to add evaluation to database.")
-                                logging.error("Failed to add evaluation to database.")
-                        else:
-                            st.error("dataset_id not found.")
-                            logging.error("dataset_id not found.")
-                    except sqlite3.Error as e:
-                        st.error(f"Failed to add prediction or evaluation to database: {e}")
-                        logging.exception(f"Database error: {e}")
                 else:
-                  st.error("Failed to load ARIMA model.")
-                  logging.error("Failed to load ARIMA model.")
-                  st.stop()
-
+                    st.error("Data preprocessing failed (ARIMA).")
+                    logging.error("Data preprocessing failed (ARIMA).")
+                    st.stop()
 
             elif algorithm == "Transformer":
                 y_pred = transformer_prediction_final(df, forecast_months)  # Use the new function

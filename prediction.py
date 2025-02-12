@@ -47,8 +47,13 @@ def prediction_page(conn, cursor):
         
     if st.button("Preprocess and Run Prediction & Evaluation"):
         if algorithm == "ARIMA":
-            #model_dict = utils.load_arima_model() # remove this
-            #if model_dict: # Remove this also
+    # Load model ARIMA dan arima_scaler
+    model_dict = load_arima_model()
+    if not model_dict:
+        st.error("Failed to load ARIMA model.")
+        st.stop()
+    model = model_dict["model"]
+    arima_scaler = model_dict["scaler"]  # Gunakan arima_scaler yang benar
             
             metrics, y_pred_original_scale = evaluate_arima_model(df, forecast_months)
             if metrics is not None and y_pred_original_scale is not None:

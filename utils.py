@@ -108,9 +108,8 @@ def load_arima_model():
         with open("sarimax_model.pkl", "rb") as f:
             model_data = pickle.load(f)
         model = model_data['model']
-        with open("arima_scaler.pkl", "rb") as f:  # Load arima_scaler.pkl
-          arima_scaler = pickle.load(f)
-        return {"model": model, "scaler": arima_scaler}  # Kembalikan arima_scaler
+        arima_scaler = model_data['scaler']
+        return {"model": model, "scaler": arima_scaler}
     except FileNotFoundError:
         st.error("ARIMA model file not found.")
         return None
@@ -315,7 +314,8 @@ def evaluate_arima_model(df, forecast_months):
     logging.info(f"y_actual shape: {y_actual.shape}, first 5 values: {y_actual[:5]}")
 
     # Preprocessing data for ARIMA
-    scaled_data, _ = scale_data(df)
+    #scaled_data, _ = scale_data(df) #HAPUS BARIS INI
+    scaled_data = df["jumlah_kasus"].values.astype(np.float32).reshape(-1, 1)
     logging.info(f"Shape of scaled_data before stationarity check: {scaled_data.shape}")
 
     # Pengecekan NaN dan Inf
@@ -326,7 +326,7 @@ def evaluate_arima_model(df, forecast_months):
         logging.error("Inf values found in scaled_data before stationarity check.")
         return None, None
 
-    scaled_data = check_stationarity(scaled_data)
+    #scaled_data = check_stationarity(scaled_data) #HAPUS BARIS INI
 
     if scaled_data is not None:
         logging.info(f"Shape of scaled_data after stationarity check: {scaled_data.shape}")
@@ -355,7 +355,7 @@ def evaluate_arima_model(df, forecast_months):
                 logging.error("Inf values found in y_pred before inverse transform.")
                 return None, None
 
-            y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
+            y_pred_original = arima_scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
             logging.info(f"Shape of y_pred_original: {y_pred_original.shape}, first 5 values: {y_pred_original[:5]}")
 
             # Evaluasi
@@ -390,4 +390,4 @@ def is_valid_password(password):
         return False
     if not re.search("[!@#$%^&*(),.?\":{}|<>]", password):
         return False
-    return True
+    return True,

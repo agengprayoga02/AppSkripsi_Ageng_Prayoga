@@ -291,34 +291,43 @@ def evaluate_transformer(df, fold, forecast_months):
    return None, None
 
 def evaluate_arima_model(df, forecast_months):
+    logging.info("Starting evaluate_arima_model")
     # Load Model
     model_dict = load_arima_model()
     if not model_dict:
+        logging.error("ARIMA model not loaded.")
         return None, None
     model = model_dict["model"]
     scaler = model_dict["scaler"]
 
-    y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
+    y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)
+    logging.info(f"y_actual shape: {y_actual.shape}, first 5 values: {y_actual[:5]}")
 
     # Preprocessing data for ARIMA
-    scaled_data, _ = scale_data(df)
+    scaled_data, _ = scale_data(df) # Pastikan scaler yang digunakan sudah benar disini.
+    logging.info(f"Shape of scaled_data before stationarity check: {scaled_data.shape}")
     scaled_data = check_stationarity(scaled_data)
 
     if scaled_data is not None:
+        logging.info(f"Shape of scaled_data after stationarity check: {scaled_data.shape}")
         # split the train data
         train_data, test_data = split_data_arima(scaled_data)
+        logging.info(f"train_data shape: {train_data.shape}, test_data shape: {test_data.shape}")
         try:
-            y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
+            y_pred = model.forecast(len(y_actual))
+            logging.info(f"Shape of y_pred before inverse transform: {y_pred.shape}")
             y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
+            logging.info(f"Shape of y_pred_original: {y_pred_original.shape}, first 5 values: {y_pred_original[:5]}")
 
             # Evaluasi
             metrics = evaluate_predictions(y_actual, y_pred_original)
+            logging.info(f"Metrics: {metrics}")
 
             return metrics, y_pred_original
         except Exception as e:
             st.error(f"Error during ARIMA forecasting: {e}")
             logging.exception(f"Error during ARIMA forecasting: {e}")
-            return None, None  # Return None on error
+            return None, None
     else:
         logging.warning("Data preprocessing failed.")
         return None, None

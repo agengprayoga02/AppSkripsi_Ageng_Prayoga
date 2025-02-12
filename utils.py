@@ -11,6 +11,10 @@ from sklearn.preprocessing import MinMaxScaler
 from statsmodels.tsa.stattools import adfuller
 from sklearn.model_selection import KFold
 import streamlit as st
+import logging  # Import logging module
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Paths (Pastikan ini sesuai dengan struktur direktori Anda)
 DATASETS_DIR = ("datasets")
@@ -37,10 +41,10 @@ def check_stationarity(timeseries):
     """Checks stationarity using ADFuller test, applies differencing if needed."""
     result = adfuller(timeseries)
     if result[1] <= 0.05:
-        print("Data sudah stasioner.")
+        logging.info("Data sudah stasioner.")
         return timeseries
     else:
-        print("Data tidak stasioner, melakukan differencing.")
+        logging.info("Data tidak stasioner, melakukan differencing.")
         return pd.DataFrame(timeseries).diff().dropna().values  # Return differenced data
 
 # --- Split Data (ARIMA) ---
@@ -113,18 +117,18 @@ def load_transformer_model_final():
     """Loads the final Transformer model."""
     model_path = os.path.join(MODELS_DIR, "final_model.h5")
     try: # Tambahkan try-except
-        print(f"Mencoba memuat model dari: {model_path}")  # Tambahkan ini
+        logging.info(f"Mencoba memuat model dari: {model_path}")  # Tambahkan ini
         if os.path.exists(model_path):
             model = load_model(model_path)
-            print(f"Final Transformer model loaded from: {model_path}")  # Tambahkan ini
+            logging.info(f"Final Transformer model loaded from: {model_path}")  # Tambahkan ini
             return model
         else:
             st.error(f"Final Transformer model not found at {model_path}")
-            print(f"Final Transformer model not found at: {model_path}") # Tambahkan ini
+            logging.warning(f"Final Transformer model not found at: {model_path}") # Tambahkan ini
             return None
     except Exception as e:
         st.error(f"Error loading Transformer model: {e}")
-        print(f"Error loading Transformer model: {e}")
+        logging.exception(f"Error loading Transformer model: {e}")
         return None
 
 def load_informer_scaler(): # Fungsi Baru untuk memuat scaler
@@ -133,11 +137,11 @@ def load_informer_scaler(): # Fungsi Baru untuk memuat scaler
     try:
         with open(scaler_path, "rb") as f:
             scaler = pickle.load(f)
-        print(f"Informer scaler loaded from: {scaler_path}")  # Tambahkan ini
+        logging.info(f"Informer scaler loaded from: {scaler_path}")  # Tambahkan ini
         return scaler
     except Exception as e:
         st.error(f"Error loading Informer scaler: {e}")
-        print(f"Error loading Informer scaler: {e}") # Tambahkan ini
+        logging.exception(f"Error loading Informer scaler: {e}") # Tambahkan ini
         return None
 
 # --- Evaluate Model ---
@@ -238,9 +242,8 @@ def transformer_prediction_final(df, forecast_months):
         return []
 
     # Scaling data harus dilakukan sebelum membuat sequence
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(x_data)  # Fit scaler dengan x_data
-    scaled_data = scaled_data
+    # scaler = MinMaxScaler()  # HAPUS BARIS INI
+    scaled_data = scaler_informer.transform(x_data)  # Fit scaler dengan x_data # GANTI DENGAN INI
     X, _ = create_sequences(scaled_data, seq_length=12)  # Assuming seq_length is 12
 
     if X is None:
@@ -249,23 +252,29 @@ def transformer_prediction_final(df, forecast_months):
 
     # Make Prediction
     try:
-        num_sequence = len(df) - 12
-        predictions_scaled = []
-        for i in range(num_sequence,len(df)):
-          input_sequence = scaled_data[i-12:i]
-          input_sequence = np.expand_dims(input_sequence, axis=0)
-          predictions_scaled.append(final_model.predict(input_sequence)[0])
+        #num_sequence = len(df) - 12
+        #predictions_scaled = []
+        #for i in range(num_sequence,len(df)):
+        #  input_sequence = scaled_data[i-12:i]
+        #  input_sequence = np.expand_dims(input_sequence, axis=0)
+        #  predictions_scaled.append(final_model.predict(input_sequence)[0])
+
+        # PREDIKSI LANGSUNG (JIKA MODEL DILATIH UNTUK INI)
+        predictions_scaled = final_model.predict(X) #Ganti semua baris di atas dengan baris ini
+        predictions_scaled = predictions_scaled[-forecast_months:] #Ambil beberapa bulan terakhir
 
     except Exception as e:
         st.error(f"Error during prediction: {e}")
+        logging.exception(f"Error during prediction: {e}")
         return []
 
     # Invert Scaling
     try:
         predictions = scaler_informer.inverse_transform(np.array(predictions_scaled).reshape(-1, 1)).flatten()  # flatten the predictions
-        predictions = predictions[-forecast_months:]
+        #predictions = predictions[-forecast_months:] #HAPUS BARIS INI
     except Exception as e:
         st.error(f"Error inverting scaling: {e}")
+        logging.exception(f"Error inverting scaling: {e}")
         return []
 
     return predictions
@@ -288,25 +297,30 @@ def evaluate_arima_model(df, forecast_months):
         return None, None
     model = model_dict["model"]
     scaler = model_dict["scaler"]
-    
+
     y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
-    
-    # Preprocessing data for ARIMA 
+
+    # Preprocessing data for ARIMA
     scaled_data, _ = scale_data(df)
     scaled_data = check_stationarity(scaled_data)
 
     if scaled_data is not None:
         # split the train data
         train_data, test_data = split_data_arima(scaled_data)
-        y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
-        y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
+        try:
+            y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
+            y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
 
-        # Evaluasi
-        metrics = evaluate_predictions(y_actual, y_pred_original)
+            # Evaluasi
+            metrics = evaluate_predictions(y_actual, y_pred_original)
 
-        return metrics, y_pred_original
+            return metrics, y_pred_original
+        except Exception as e:
+            st.error(f"Error during ARIMA forecasting: {e}")
+            logging.exception(f"Error during ARIMA forecasting: {e}")
+            return None, None  # Return None on error
     else:
-        print("Data preprocessing failed.")
+        logging.warning("Data preprocessing failed.")
         return None, None
 
 def is_valid_password(password):

@@ -29,13 +29,6 @@ def load_and_preprocess_data(file_path):
     df.set_index('periode', inplace=True)
     return df
 
-# --- Data Normalization (ARIMA - With Scaler Return) ---
-def scale_data(df, feature_column='jumlah_kasus'):
-    """Scales data using MinMaxScaler. Returns scaler and scaled data."""
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df[[feature_column]])
-    return scaled_data, scaler
-
 # --- Stationarity Check (For ARIMA) ---
 def check_stationarity(timeseries):
     """Checks stationarity using ADFuller test, applies differencing if needed."""
@@ -216,7 +209,7 @@ def compare_actual_vs_predicted(y_true, y_pred):
         y_true = np.array(y_true)
         y_pred = np.array(y_pred)
 
-    metrics = evaluate_predictions(y_true, y_pred)
+    metrics = evaluate_predictions(y_true, y_pred, )
     plot_predictions(y_true, y_pred, title="Actual vs Predicted")
 
     return metrics
@@ -242,7 +235,6 @@ def transformer_prediction_final(df, forecast_months):
         return []
 
     # Scaling data harus dilakukan sebelum membuat sequence
-    # scaler = MinMaxScaler()  # HAPUS BARIS INI
     scaled_data = scaler_informer.transform(x_data)  # Fit scaler dengan x_data # GANTI DENGAN INI
     X, _ = create_sequences(scaled_data, seq_length=12)  # Assuming seq_length is 12
 
@@ -252,14 +244,6 @@ def transformer_prediction_final(df, forecast_months):
 
     # Make Prediction
     try:
-        #num_sequence = len(df) - 12
-        #predictions_scaled = []
-        #for i in range(num_sequence,len(df)):
-        #  input_sequence = scaled_data[i-12:i]
-        #  input_sequence = np.expand_dims(input_sequence, axis=0)
-        #  predictions_scaled.append(final_model.predict(input_sequence)[0])
-
-        # PREDIKSI LANGSUNG (JIKA MODEL DILATIH UNTUK INI)
         predictions_scaled = final_model.predict(X) #Ganti semua baris di atas dengan baris ini
         predictions_scaled = predictions_scaled[-forecast_months:] #Ambil beberapa bulan terakhir
 
@@ -271,7 +255,6 @@ def transformer_prediction_final(df, forecast_months):
     # Invert Scaling
     try:
         predictions = scaler_informer.inverse_transform(np.array(predictions_scaled).reshape(-1, 1)).flatten()  # flatten the predictions
-        #predictions = predictions[-forecast_months:] #HAPUS BARIS INI
     except Exception as e:
         st.error(f"Error inverting scaling: {e}")
         logging.exception(f"Error inverting scaling: {e}")
@@ -292,13 +275,10 @@ def evaluate_transformer(df, fold, forecast_months):
 
 def evaluate_arima_model(df, forecast_months):
     # Preprocessing data for ARIMA
-    scaled_data, scaler = scale_data(df)  # Get scaler here
-    scaled_data = check_stationarity(scaled_data)
+    df_values = df["jumlah_kasus"].values
+    df_values = check_stationarity(df_values)
 
-    if scaled_data is not None:
-        # split the train data
-        train_data, test_data = split_data_arima(scaled_data)
-        
+    if df_values is not None:
         # Load Model
         model_dict = load_arima_model()
         if not model_dict:
@@ -309,7 +289,8 @@ def evaluate_arima_model(df, forecast_months):
 
         try:
             y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
-            y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
+            #y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten() #HAPUS
+            y_pred_original = y_pred
 
             # Evaluasi
             metrics = evaluate_predictions(y_actual, y_pred_original)
@@ -322,6 +303,12 @@ def evaluate_arima_model(df, forecast_months):
     else:
         logging.warning("Data preprocessing failed.")
         return None, None
+
+# --- No Scale data
+
+def scale_data(df, feature_column='jumlah_kasus'):
+    """No scale data."""
+    return df, None
 
 def is_valid_password(password):
     """

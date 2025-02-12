@@ -17,7 +17,8 @@ def compare_models_page(conn, cursor):
             st.session_state.comparison_model = []
 
         # Model Selection for Comparison
-        selected_models = st.multiselect("Select models for comparison", [model.split(".")[0] for model in os.listdir(MODELS_DIR)])
+        model_options = [model.split(".")[0] for model in os.listdir(MODELS_DIR)]
+        selected_models = st.multiselect("Select models for comparison", model_options)
 
         if st.button("Compare Models"):
             if selected_models:
@@ -48,8 +49,6 @@ def compare_models_page(conn, cursor):
                 dataset_id = result[0] if result else None
 
                 for model_name, model in models.items(): # Iterasi melalui model yang sudah di load
-                    st.subheader(f"Model: {model_name}") # Judul untuk setiap model
-
                     if "sarimax_model" in model_name:
                         # Fetch model_id
                         cursor.execute("SELECT model_id FROM models WHERE algorithm = 'ARIMA' ORDER BY model_id DESC LIMIT 1")
@@ -63,10 +62,6 @@ def compare_models_page(conn, cursor):
                                 "y_pred" : y_pred_original,
                                 "y_actual" : df["jumlah_kasus"].values[-len(y_pred_original):]
                             }
-
-                            # Tampilkan hasil evaluasi dan plot
-                            st.write("Evaluation Metrics:", metrics)
-                            plot_predictions(results[model_name]["y_actual"], results[model_name]["y_pred"], title=f"Actual vs Predicted for {model_name}")
 
                             # Insert history and evaluation data
                             if model_id is not None and dataset_id is not None:
@@ -98,11 +93,6 @@ def compare_models_page(conn, cursor):
                                 "y_actual" : df["jumlah_kasus"].tolist()[len(df["jumlah_kasus"])-len(y_pred):]
                             }
 
-                            # Tampilkan hasil evaluasi dan plot
-                            st.write("Evaluation Metrics:", metrics)
-                            plot_predictions(results[model_name]["y_actual"], results[model_name]["y_pred"], title=f"Actual vs Predicted for {model_name}")
-
-
                             # Insert history and evaluation data
                             if model_id is not None and dataset_id is not None:
                                 if insert_history(cursor, model_id, dataset_id, y_pred.tolist()):  # Convert NumPy array to list
@@ -124,7 +114,7 @@ def compare_models_page(conn, cursor):
                         cursor.execute("SELECT model_id FROM models WHERE model_name = ? ORDER BY model_id DESC LIMIT 1", (model_name,))
                         result = cursor.fetchone()
                         model_id = result[0] if result else None
-                        
+
                         y_pred = transformer_prediction_final(df, forecast_months = 12) # Menggunakan fungsi prediksi baru
                         y_actual = df["jumlah_kasus"].tolist()[-len(y_pred):]
 
@@ -135,11 +125,6 @@ def compare_models_page(conn, cursor):
                                 "y_pred": y_pred,
                                 "y_actual": y_actual
                             }
-
-                            # Tampilkan hasil evaluasi dan plot
-                            st.write("Evaluation Metrics:", metrics)
-                            plot_predictions(results[model_name]["y_actual"], results[model_name]["y_pred"], title=f"Actual vs Predicted for {model_name}")
-
 
                             # Insert history and evaluation data
                             if model_id is not None and dataset_id is not None:
@@ -191,7 +176,14 @@ def compare_models_page(conn, cursor):
                     # Model recommendation
                     best_model = comparison_df.sort_values(by="RMSE").iloc[0]
                     st.subheader("Recommendation")
+
+                    # Detail explanation
                     st.write(f"Based on the results, the model with the lowest RMSE is **{best_model['Model']}**.")
+                    if "final_model" in best_model['Model']:
+                        st.write(f"The **final_model** refers to the **Transformer model** which often excels in capturing complex temporal dependencies.")
+                    elif "sarimax_model" in best_model['Model']:
+                        st.write(f"The **sarimax_model** refers to the **ARIMA model** which is known for its simplicity and effectiveness in modeling linear time series data.")
+
                     st.write(f"Therefore, we recommend using **{best_model['Model']}** for prediction.")
 
                     # Plot Predictions for selected model
@@ -200,6 +192,11 @@ def compare_models_page(conn, cursor):
                     model_result = results[selected_model_for_plot]
 
                     plot_predictions(model_result["y_actual"], model_result["y_pred"], title=f"Actual vs Predicted for {selected_model_for_plot}")
+
+                    # Display Evaluation Metrics for each model
+                    st.subheader("Evaluation Metrics for each Model:")
+                    for model_name, model_result in results.items():
+                        st.write(f"**{model_name}**: {model_result['metrics']}")
 
                 else:
                     st.error("Please select at least one model to compare.")

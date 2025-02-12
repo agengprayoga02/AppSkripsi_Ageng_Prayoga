@@ -29,9 +29,9 @@ def load_and_preprocess_data(file_path):
     df.set_index('periode', inplace=True)
     return df
 
-# --- Data Normalization ---
+# --- Data Normalization (ARIMA - With Scaler Return) ---
 def scale_data(df, feature_column='jumlah_kasus'):
-    """Scales data using MinMaxScaler."""
+    """Scales data using MinMaxScaler. Returns scaler and scaled data."""
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(df[[feature_column]])
     return scaled_data, scaler
@@ -291,22 +291,22 @@ def evaluate_transformer(df, fold, forecast_months):
    return None, None
 
 def evaluate_arima_model(df, forecast_months):
-    # Load Model
-    model_dict = load_arima_model()
-    if not model_dict:
-        return None, None
-    model = model_dict["model"]
-    scaler = model_dict["scaler"]
-
-    y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
-
     # Preprocessing data for ARIMA
-    scaled_data, _ = scale_data(df)
+    scaled_data, scaler = scale_data(df)  # Get scaler here
     scaled_data = check_stationarity(scaled_data)
 
     if scaled_data is not None:
         # split the train data
         train_data, test_data = split_data_arima(scaled_data)
+        
+        # Load Model
+        model_dict = load_arima_model()
+        if not model_dict:
+            return None, None
+        model = model_dict["model"]
+
+        y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
+
         try:
             y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
             y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()

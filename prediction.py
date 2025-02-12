@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 import sqlite3
-from utils import load_dataset, scale_data, check_stationarity, split_data_arima, evaluate_predictions, plot_predictions, generate_recommendation, compare_actual_vs_predicted, transformer_prediction_final, load_transformer_model_final, evaluate_arima_model
+from utils import load_dataset, scale_data, check_stationarity, split_data_arima, evaluate_predictions, plot_predictions, generate_recommendation, compare_actual_vs_predicted, transformer_prediction_final, load_transformer_model_final, evaluate_arima_model  # Pastikan load_arima_model ada di sini
 from db import insert_history, insert_evaluation_history
 
 DATASETS_DIR = "datasets"

@@ -103,14 +103,19 @@ def preprocess_dataset_informer(df, target_col="jumlah_kasus", seq_length=12):
 
 # --- Load Models ---
 def load_arima_model():
-    """Loads the ARIMA model."""
-    model_path = os.path.join(MODELS_DIR, "sarimax_model.pkl")
-    if os.path.exists(model_path):
-        with open(model_path, "rb") as f:
-            model_dict = pickle.load(f)
-        return model_dict
-    else:
-        st.error(f"ARIMA model not found at {model_path}")
+    """Loads the ARIMA model and arima_scaler."""
+    try:
+        with open("sarimax_model.pkl", "rb") as f:
+            model_data = pickle.load(f)
+        model = model_data['model']
+        with open("arima_scaler.pkl", "rb") as f:  # Load arima_scaler.pkl
+          arima_scaler = pickle.load(f)
+        return {"model": model, "scaler": arima_scaler}  # Kembalikan arima_scaler
+    except FileNotFoundError:
+        st.error("ARIMA model file not found.")
+        return None
+    except Exception as e:
+        st.error(f"Error loading ARIMA model: {e}")
         return None
 
 def load_transformer_model_final():
@@ -291,15 +296,12 @@ def evaluate_transformer(df, fold, forecast_months):
    return None, None
 
 def evaluate_arima_model(df, forecast_months):
-    logging.info("Starting evaluate_arima_model")
-
     # Load Model
     model_dict = load_arima_model()
     if not model_dict:
-        logging.error("ARIMA model not loaded.")
         return None, None
     model = model_dict["model"]
-    scaler = model_dict["scaler"]
+    arima_scaler = model_dict["scaler"]
 
     # Coba lakukan prediksi sederhana segera setelah model dimuat
     try:

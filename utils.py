@@ -292,6 +292,7 @@ def evaluate_transformer(df, fold, forecast_months):
 
 def evaluate_arima_model(df, forecast_months):
     logging.info("Starting evaluate_arima_model")
+
     # Load Model
     model_dict = load_arima_model()
     if not model_dict:
@@ -300,22 +301,58 @@ def evaluate_arima_model(df, forecast_months):
     model = model_dict["model"]
     scaler = model_dict["scaler"]
 
+    # Coba lakukan prediksi sederhana segera setelah model dimuat
+    try:
+        test_pred = model.forecast(steps=1)  # Coba prediksi 1 langkah
+        logging.info(f"Test prediction after loading model: {test_pred}")
+    except Exception as e:
+        logging.error(f"Error during test prediction: {e}")
+        return None, None
+
     y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)
     logging.info(f"y_actual shape: {y_actual.shape}, first 5 values: {y_actual[:5]}")
 
     # Preprocessing data for ARIMA
-    scaled_data, _ = scale_data(df) # Pastikan scaler yang digunakan sudah benar disini.
+    scaled_data, _ = scale_data(df)
     logging.info(f"Shape of scaled_data before stationarity check: {scaled_data.shape}")
+
+    # Pengecekan NaN dan Inf
+    if np.isnan(scaled_data).any():
+        logging.error("NaN values found in scaled_data before stationarity check.")
+        return None, None
+    if np.isinf(scaled_data).any():
+        logging.error("Inf values found in scaled_data before stationarity check.")
+        return None, None
+
     scaled_data = check_stationarity(scaled_data)
 
     if scaled_data is not None:
         logging.info(f"Shape of scaled_data after stationarity check: {scaled_data.shape}")
+
+        # Pengecekan NaN dan Inf setelah stationarity
+        if np.isnan(scaled_data).any():
+            logging.error("NaN values found in scaled_data after stationarity check.")
+            return None, None
+        if np.isinf(scaled_data).any():
+            logging.error("Inf values found in scaled_data after stationarity check.")
+            return None, None
+
         # split the train data
         train_data, test_data = split_data_arima(scaled_data)
         logging.info(f"train_data shape: {train_data.shape}, test_data shape: {test_data.shape}")
+
         try:
             y_pred = model.forecast(len(y_actual))
             logging.info(f"Shape of y_pred before inverse transform: {y_pred.shape}")
+
+            # Pengecekan NaN dan Inf pada prediksi
+            if np.isnan(y_pred).any():
+                logging.error("NaN values found in y_pred before inverse transform.")
+                return None, None
+            if np.isinf(y_pred).any():
+                logging.error("Inf values found in y_pred before inverse transform.")
+                return None, None
+
             y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
             logging.info(f"Shape of y_pred_original: {y_pred_original.shape}, first 5 values: {y_pred_original[:5]}")
 

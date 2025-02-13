@@ -103,30 +103,26 @@ def preprocess_dataset_informer(df, target_col="jumlah_kasus", seq_length=12):
 
 # --- Load Models ---
 def load_arima_model():
-    """Loads the ARIMA model."""
-    model_path = os.path.join(MODELS_DIR, "sarimax_model.pkl")
-    scaler_path = os.path.join(MODELS_DIR, "arima_scaler.pkl")  # Path ke scaler ARIMA
-    if os.path.exists(model_path) and os.path.exists(scaler_path):
-        try:
-            with open(model_path, "rb") as f:
-                model = pickle.load(f)
-            with open(scaler_path, "rb") as f:
-                scaler = pickle.load(f)
-            logging.info(f"ARIMA model and scaler loaded from: {model_path} and {scaler_path}")
-            return {"model": model, "scaler": scaler}
-        except FileNotFoundError:
-            st.error(f"File not found: Model at {model_path} or Scaler at {scaler_path} missing.")
-            return None
-        except pickle.PickleError as e:
-            st.error(f"Error loading pickle file: {e}")
-            return None
-        except Exception as e:
-            st.error(f"An unexpected error occurred: {e}")
-            return None
-    else:
-        st.error(f"ARIMA model or scaler not found at {model_path} or {scaler_path}")
+    """Loads the ARIMA model and scaler."""
+    model_path = os.path.join(MODELS_DIR, "arima_model.pkl")  # Sesuaikan nama file
+    scaler_path = os.path.join(MODELS_DIR, "arima_scaler.pkl")  # Sesuaikan nama file
+    try:
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        with open(scaler_path, "rb") as f:
+            scaler = pickle.load(f)
+        logging.info(f"ARIMA model and scaler loaded from: {model_path} and {scaler_path}")
+        return {"model": model, "scaler": scaler}
+    except FileNotFoundError:
+        st.error(f"File not found: Model at {model_path} or Scaler at {scaler_path} missing.")
         return None
-
+    except pickle.PickleError as e:
+        st.error(f"Error loading pickle file: {e}")
+        return None
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
+        return None
+        
 def load_transformer_model_final():
     """Loads the final Transformer model."""
     model_path = os.path.join(MODELS_DIR, "final_model.h5")

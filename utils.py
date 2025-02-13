@@ -104,7 +104,7 @@ def preprocess_dataset_informer(df, target_col="jumlah_kasus", seq_length=12):
 # --- Load Models ---
 def load_arima_model():
     """Loads the ARIMA model and scaler."""
-    model_path = os.path.join(MODELS_DIR, "sarimax_model.pkl")  # Sesuaikan nama file
+    model_path = os.path.join(MODELS_DIR, "arima_model.pkl")  # Sesuaikan nama file
     scaler_path = os.path.join(MODELS_DIR, "arima_scaler.pkl")  # Sesuaikan nama file
     try:
         with open(model_path, "rb") as f:

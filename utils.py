@@ -143,7 +143,7 @@ def load_transformer_model_final():
 
 def load_informer_scaler(): # Fungsi Baru untuk memuat scaler
     """Loads the scaler for Informer model."""
-    scaler_path = os.path.join(MODELS_DIR, "informer_scaler.pkl")  # Sesuaikan jika nama file scaler berbeda
+    scaler_path = os.path.join(MODELS_DIR, "scaler.pkl")  # Sesuaikan jika nama file scaler berbeda
     try:
         with open(scaler_path, "rb") as f:
             scaler = pickle.load(f)

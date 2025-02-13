@@ -103,14 +103,17 @@ def preprocess_dataset_informer(df, target_col="jumlah_kasus", seq_length=12):
 
 # --- Load Models ---
 def load_arima_model():
-    """Loads the ARIMA model."""
+    """Loads the ARIMA model and scaler."""
     model_path = os.path.join(MODELS_DIR, "sarimax_model.pkl")
-    if os.path.exists(model_path):
+    scaler_path = os.path.join(MODELS_DIR, "arima_scaler.pkl") # Path ke scaler ARIMA
+    if os.path.exists(model_path) and os.path.exists(scaler_path):
         with open(model_path, "rb") as f:
-            model_dict = pickle.load(f)
-        return model_dict
+            model = pickle.load(f)
+        with open(scaler_path, "rb") as f: # Load scaler juga
+            scaler = pickle.load(f)
+        return {"model": model, "scaler": scaler}
     else:
-        st.error(f"ARIMA model not found at {model_path}")
+        st.error(f"ARIMA model atau scaler tidak ditemukan di {model_path} atau {scaler_path}")
         return None
 
 def load_transformer_model_final():
@@ -291,6 +294,7 @@ def evaluate_transformer(df, fold, forecast_months):
    return None, None
 
 def evaluate_arima_model(df, forecast_months):
+    """Evaluates the ARIMA model and returns metrics and predictions."""
     # Load Model
     model_dict = load_arima_model()
     if not model_dict:
@@ -310,6 +314,10 @@ def evaluate_arima_model(df, forecast_months):
         try:
             y_pred = model.forecast(len(y_actual))  # Prediksi ARIMA
             y_pred_original = scaler.inverse_transform(np.array(y_pred).reshape(-1, 1)).flatten()
+
+            if any(pd.isna(y_pred_original)):
+                st.error("ARIMA Model prediction contains NaN after inverse transform. Check scaler or model.")
+                return None, None
 
             # Evaluasi
             metrics = evaluate_predictions(y_actual, y_pred_original)

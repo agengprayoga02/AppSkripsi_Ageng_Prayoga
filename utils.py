@@ -103,26 +103,16 @@ def preprocess_dataset_informer(df, target_col="jumlah_kasus", seq_length=12):
 
 # --- Load Models ---
 def load_arima_model():
-    """Loads the ARIMA model and scaler."""
-    model_path = os.path.join(MODELS_DIR, "sarimax_model.pkl")  # Sesuaikan nama file
-    scaler_path = os.path.join(MODELS_DIR, "arima_scaler.pkl")  # Sesuaikan nama file
-    try:
+    """Loads the ARIMA model."""
+    model_path = os.path.join(MODELS_DIR, "sarimax_model.pkl")
+    if os.path.exists(model_path):
         with open(model_path, "rb") as f:
-            model = pickle.load(f)
-        with open(scaler_path, "rb") as f:
-            scaler = pickle.load(f)
-        logging.info(f"ARIMA model and scaler loaded from: {model_path} and {scaler_path}")
-        return {"model": model, "scaler": scaler}
-    except FileNotFoundError:
-        st.error(f"File not found: Model at {model_path} or Scaler at {scaler_path} missing.")
+            model_dict = pickle.load(f)
+        return model_dict
+    else:
+        st.error(f"ARIMA model not found at {model_path}")
         return None
-    except pickle.PickleError as e:
-        st.error(f"Error loading pickle file: {e}")
-        return None
-    except Exception as e:
-        st.error(f"An unexpected error occurred: {e}")
-        return None
-        
+
 def load_transformer_model_final():
     """Loads the final Transformer model."""
     model_path = os.path.join(MODELS_DIR, "final_model.h5")
@@ -242,8 +232,8 @@ def transformer_prediction_final(df, forecast_months):
         return []
 
     # Load scaler
-    informer_scaler = load_informer_scaler() # Panggil fungsi untuk memuat scaler
-    if not informer_scaler:
+    scaler_informer = load_informer_scaler() # Panggil fungsi untuk memuat scaler
+    if not scaler_informer:
         return []
 
     # Preprocessing Data
@@ -252,7 +242,8 @@ def transformer_prediction_final(df, forecast_months):
         return []
 
     # Scaling data harus dilakukan sebelum membuat sequence
-    scaled_data = informer_scaler.transform(x_data)  # Fit scaler dengan x_data # GANTI DENGAN INI
+    # scaler = MinMaxScaler()  # HAPUS BARIS INI
+    scaled_data = scaler_informer.transform(x_data)  # Fit scaler dengan x_data # GANTI DENGAN INI
     X, _ = create_sequences(scaled_data, seq_length=12)  # Assuming seq_length is 12
 
     if X is None:
@@ -279,7 +270,7 @@ def transformer_prediction_final(df, forecast_months):
 
     # Invert Scaling
     try:
-        predictions = informer_scaler.inverse_transform(np.array(predictions_scaled).reshape(-1, 1)).flatten()  # flatten the predictions
+        predictions = scaler_informer.inverse_transform(np.array(predictions_scaled).reshape(-1, 1)).flatten()  # flatten the predictions
         #predictions = predictions[-forecast_months:] #HAPUS BARIS INI
     except Exception as e:
         st.error(f"Error inverting scaling: {e}")
@@ -310,7 +301,7 @@ def evaluate_arima_model(df, forecast_months):
     y_actual = df["jumlah_kasus"].values[-forecast_months:].astype(np.float32)  # Data aktual (n bulan terakhir)
 
     # Preprocessing data for ARIMA
-    scaled_data, scaler_used = scale_data(df)  # Dapatkan scaler yang digunakan
+    scaled_data, _ = scale_data(df)
     scaled_data = check_stationarity(scaled_data)
 
     if scaled_data is not None:
